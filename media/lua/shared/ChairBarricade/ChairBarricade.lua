@@ -26,65 +26,79 @@ local function getPlayerSideOfDoor(player, door)
 end
 
 local function playerHasChair(player)
-   print("playerHasChair function called")
-   if not player then 
-       print("Player is nil")
-       return false, nil
-   end
-   
-   local inv = player:getInventory()
-   if not inv then 
-       print("Inventory is nil")
-       return false, nil
-   end
-
-   local items = inv:getItems()
-   for i=0, items:size()-1 do
-       local item = items:get(i)
-       if item:getFullType():contains("furniture_seating") then
-           print("Found chair: " .. item:getFullType())
-           return true, item
-       end
-   end
-   
-   return false, nil
+    print("playerHasChair function called")
+    if not player then 
+        print("Player is nil")
+        return false, nil
+    end
+    
+    local inv = player:getInventory()
+    if not inv then 
+        print("Inventory is nil")
+        return false, nil
+    end
+ 
+    local items = inv:getItems()
+    print("Scanning player's inventory:")
+    for i=0, items:size()-1 do
+        local item = items:get(i)
+        local itemID = item:getFullType()
+        print(" - Found item: " .. itemID)
+        if itemID == "Base.Mov_GreenChair" or itemID:find("furniture_seating") then
+            print(" >> Chair detected: " .. itemID)
+            return true, item
+        end
+    end
+    
+    print("No chairs found in inventory.")
+    return false, nil
 end
-
+ 
 local function onFillWorldObjectContextMenu(player, context, worldobjects)
-   print("Context menu handler called")
-   if not context then 
-       print("Error: No context provided")
-       return 
-   end
-   
-   local door = nil
-   for _,object in ipairs(worldobjects) do
-       if instanceof(object, "IsoDoor") then
-           door = object
-           print("Found a door")
-           break
-       end
-   end
+    print("Context menu handler called")
+    if not context then 
+        print("Error: No context provided")
+        return 
+    end
+    
+    local door = nil
+    local chairProp = nil
 
-   local currentPlayer = getSpecificPlayer(player)
-   
-   print("Current player: " .. tostring(currentPlayer))
-   if currentPlayer then
-       print("Player inventory exists: " .. tostring(currentPlayer:getInventory() ~= nil))
-   end
-   
-   local hasChair, chairItem = playerHasChair(currentPlayer)
-   print("Has chair check result: " .. tostring(hasChair))
-   
-   if door and hasChair then
-       context:addOption("Lock with Chair", worldobjects, ChairBarricade.onBarricade, player, door, chairItem)
-       print("Added chair barricade option to menu")
-   else
-       print("Conditions not met for chair barricade:")
-       print("Door found: " .. tostring(door ~= nil))
-       print("Player valid: " .. tostring(currentPlayer ~= nil))
-       print("Has chair: " .. tostring(hasChair))
-   end
+    for _, object in ipairs(worldobjects) do
+        if instanceof(object, "IsoDoor") then
+            door = object
+            print("Found a door")
+        elseif instanceof(object, "IsoThumpable") and 
+               object:getName() == "BarricadeChair" then
+            chairProp = object
+            print("Found a barricade chair")
+        end
+    end
+
+    local currentPlayer = getSpecificPlayer(player)
+    
+    -- Check if door is barricaded and add remove option
+    if door and door:getModData().chairBarricaded then
+        print("Door is already barricaded with a chair")
+        context:addOption("Remove Chair Barricade", worldobjects, ChairBarricade.onRemoveBarricade, chairProp, door)
+    -- Otherwise check if we can add a chair
+    else
+        local hasChair, chairItem = playerHasChair(currentPlayer)
+        print("Has chair check result: " .. tostring(hasChair))
+        
+        if door and hasChair then
+            context:addOption("Lock with Chair", worldobjects, ChairBarricade.onBarricade, player, door, chairItem)
+            print("Added chair barricade option to menu")
+        else
+            print("Conditions not met for chair barricade:")
+            print("Door found: " .. tostring(door ~= nil))
+            print("Player valid: " .. tostring(currentPlayer ~= nil))
+            print("Has chair: " .. tostring(hasChair))
+            if door then
+                print("Door already barricaded: " .. tostring(door:getModData().chairBarricaded))
+            end
+        end
+    end
 end
 
 ChairBarricade.onBarricade = function(worldobjects, playerNum, door, chairItem)
@@ -101,7 +115,7 @@ ChairBarricade.onBarricade = function(worldobjects, playerNum, door, chairItem)
    if door.setLocked then door:setLocked(true) end
    if door.setBarricaded then door:setBarricaded(true) end
    
-
+    inv:Remove(chairItem)
     -- Before changing door health
     local currentHealth = door:getHealth()
     print("Door health before barricade: " .. currentHealth)
@@ -159,6 +173,84 @@ ChairBarricade.onBarricade = function(worldobjects, playerNum, door, chairItem)
        end
    end
 end
+
+ChairBarricade.onRemoveBarricade = function(worldobjects, chair, door)
+    print("Removal function called with:")
+    print("Chair: " .. tostring(chair))
+    print("Door: " .. tostring(door))
+   
+    -- Safety check
+    if not door then
+        print("ERROR: Door is nil!")
+        return
+    end
+   
+    if not door.getSquare then
+        print("ERROR: Door doesn't have getSquare method!")
+        return
+    end
+ 
+    -- Get current multiplier to properly reduce health
+    local multiplier = SandboxVars.ChairBarricade.DoorHealthMultiplier
+   
+    -- Reduce door health back to original
+    local currentHealth = door:getHealth()
+    print("Door health before chair removal: " .. currentHealth)
+    door:setHealth(currentHealth / multiplier)
+    print("Door health after chair removal: " .. door:getHealth())
+   
+    -- Reset door state with safety checks
+    if door.setLockedByKey then
+        door:setLockedByKey(false)
+        print("Door unlocked (key)")
+    end
+    if door.setLocked then
+        door:setLocked(false)
+        print("Door unlocked")
+    end
+    -- Use modData instead of direct method call
+    if door:getModData() then
+        door:getModData().barricaded = false
+        print("Door barricade flag reset")
+    end
+   
+    -- Find and remove the chair object from the square
+    local doorSquare = door:getSquare()
+    if doorSquare then
+        -- Check squares around the door for the chair
+        local squares = {doorSquare}
+        table.insert(squares, getCell():getGridSquare(doorSquare:getX(), doorSquare:getY() + 1, doorSquare:getZ()))
+        table.insert(squares, getCell():getGridSquare(doorSquare:getX(), doorSquare:getY() - 1, doorSquare:getZ()))
+        table.insert(squares, getCell():getGridSquare(doorSquare:getX() + 1, doorSquare:getY(), doorSquare:getZ()))
+        table.insert(squares, getCell():getGridSquare(doorSquare:getX() - 1, doorSquare:getY(), doorSquare:getZ()))
+       
+        for _, square in ipairs(squares) do
+            if square then
+                local objects = square:getObjects()
+                for i = 0, objects:size() - 1 do
+                    local obj = objects:get(i)
+                    if obj and instanceof(obj, "IsoThumpable") and obj:getName() == "BarricadeChair" then
+                        square:RemoveTileObject(obj)
+                        print("Chair object removed from square")
+
+                        local player = getSpecificPlayer(0)
+                        if player then
+                            player:getInventory():AddItem("Base.Mov_GreenChair")
+                            print("Chair added to player inventory")
+                        end
+                                  
+
+                        break
+                    end
+                end
+            end
+        end
+    end
+   
+    door:getModData().chairBarricaded = false
+    print("Chair barricade removed successfully!")
+end
+
 
 local function onDoorInteraction(door)
   print("Door interaction triggered")
