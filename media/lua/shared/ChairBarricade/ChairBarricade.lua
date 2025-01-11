@@ -101,8 +101,17 @@ ChairBarricade.onBarricade = function(worldobjects, playerNum, door, chairItem)
    if door.setLocked then door:setLocked(true) end
    if door.setBarricaded then door:setBarricaded(true) end
    
-   inv:Remove(chairItem)
-   door:setHealth(door:getHealth() * 3.0)
+
+    -- Before changing door health
+    local currentHealth = door:getHealth()
+    print("Door health before barricade: " .. currentHealth)
+
+    local multiplier = SandboxVars.ChairBarricade.DoorHealthMultiplier
+    print("Using door health multiplier: " .. multiplier)
+
+    -- Apply the multiplier
+    door:setHealth(currentHealth * multiplier)
+    print("Door health after barricade: " .. door:getHealth())
    
    local doorSquare = door:getSquare()
    if doorSquare then

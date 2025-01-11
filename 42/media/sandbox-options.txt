@@ -1,0 +1,9 @@
+VERSION = 1,
+option ChairBarricade.DoorHealthMultiplier {
+    type = double,
+    min = 1.0,
+    max = 10.0,
+    default = 3.0,
+    page = ChairBarricade,
+    translation = ChairBarricade_DoorHealthMultiplier,
+}
