@@ -5,8 +5,8 @@ A simple mod that adds the ability to fortify doors by propping chairs against t
 
 ## Features
 - Use any chair to barricade doors
-- Increases door health by an adjustable amount.
-- Select door health multiplier in Sandbox settings.
+- Increases door health by an adjustable amount
+- Select door health multiplier in Sandbox settings
 - Creates physical barrier with placed chair
 - Door becomes locked from both sides
 - Visual feedback with chair prop against door
