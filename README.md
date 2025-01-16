@@ -1,5 +1,7 @@
 # Chair Barricade Mod for Project Zomboid
 
+![Steam Subscribers](https://img.shields.io/steam/subscriptions/3404288341?style=for-the-badge&color=blue&logo=steam&label=Workshop%20Subs) ![Steam Favorites](https://img.shields.io/steam/favorites/3404288341?style=for-the-badge&color=blue&logo=steam&label=Favorites)
+
 ## Description
 A simple mod that adds the ability to fortify doors by propping chairs against them. When a chair is used to barricade a door, it increases the door's health by an adjustable amount and creates a physical barrier that prevents movement through the barricaded side.
 
