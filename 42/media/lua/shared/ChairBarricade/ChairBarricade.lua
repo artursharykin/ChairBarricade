@@ -213,6 +213,9 @@ ChairBarricade.onBarricade = function(worldobjects, playerNum, door, chairItem)
                            local directionMap = {west = 0, north = 1, east = 2, south = 3}
                            local offset = directionMap[chairDirection] or 0
 
+                           -- Add 180 degree flip (opposite direction needed for proper orientation)
+                           offset = (offset + 2) % 4
+
                            -- For furniture_seating_indoor_01_56-59 pattern
                            if baseNumber >= 56 and baseNumber <= 59 then
                                spriteName = baseSprite .. "_" .. (56 + offset)
