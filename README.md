@@ -21,7 +21,13 @@ A simple mod that adds the ability to fortify doors by propping chairs against t
 - When removing a barricade, you get back the exact chair type you used
 - Compatible with Build 41 & 42
 
-## Recent Updates (v1.1.0)
+## Recent Updates (v1.2.0)
+- **Fixed**: Resolved Build 42 crash issues with improved null safety checks
+- **Added**: Support for player-crafted chairs and furniture items
+- **Fixed**: Enhanced sprite handling with safe fallbacks to prevent crashes
+- **Improved**: Better chair detection that works with all chair types including custom/modded ones
+
+## Previous Updates (v1.1.0)
 - **Fixed**: All doors can now be closed and locked, including previously "unlockable" interior doors
 - **Fixed**: Chairs now display with their actual appearance instead of always being green wooden chairs
 - **Fixed**: Removing a barricade now returns the correct chair type to your inventory

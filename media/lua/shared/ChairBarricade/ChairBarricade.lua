@@ -44,7 +44,14 @@ local function playerHasChair(player)
         local item = items:get(i)
         local itemID = item:getFullType()
         print(" - Found item: " .. itemID)
-        if itemID == "Base.Mov_GreenChair" or itemID:find("furniture_seating") then
+
+        -- Check for various chair types including player-crafted
+        local isChair = itemID:find("Chair") or
+                       itemID:find("furniture_seating") or
+                       itemID:find("seats_") or
+                       (item:getCategory() and item:getCategory() == "Furniture")
+
+        if isChair then
             print(" >> Chair detected: " .. itemID)
             return true, item
         end
@@ -161,47 +168,68 @@ ChairBarricade.onBarricade = function(worldobjects, playerNum, door, chairItem)
 
            print("Placing chair facing: " .. chairDirection)
 
-           -- Get the sprite from the actual chair item
-           local chairSprite = chairItem:getWorldSprite()
-           print("Chair world sprite: " .. tostring(chairSprite))
+           -- Default fallback sprites
+           local defaultChairs = {
+               south = "furniture_seating_indoor_01_59",
+               east = "furniture_seating_indoor_01_58",
+               north = "furniture_seating_indoor_01_57",
+               west = "furniture_seating_indoor_01_56"
+           }
 
-           -- Map direction to sprite orientation suffix if needed
-           -- Most furniture sprites follow a pattern: basename_N where N is the orientation
-           -- We'll try to use the chair's actual sprite with orientation handling
-           local spriteName = chairSprite
+           -- Try to get the sprite from the actual chair item
+           local chairSprite = nil
+           local spriteName = defaultChairs[chairDirection]  -- Default fallback
 
-           -- For chairs with multiple orientations, try to get the right one
-           -- Check if the sprite has an underscore followed by a number (orientation indicator)
-           if chairSprite and chairSprite:match("_(%d+)$") then
-               -- Extract base sprite name without orientation
-               local baseSprite = chairSprite:match("(.+)_(%d+)$")
-               if baseSprite then
-                   -- Try to find sprites for different orientations
-                   -- Most furniture follows patterns like: name_0, name_1, name_2, name_3
-                   -- or name_56, name_57, name_58, name_59
-                   local orientNumber = chairSprite:match("_(%d+)$")
-                   local baseNumber = tonumber(orientNumber)
-
-                   if baseNumber then
-                       -- Calculate offset based on direction
-                       local directionMap = {north = 0, east = 1, south = 2, west = 3}
-                       local offset = directionMap[chairDirection] or 0
-
-                       -- For furniture_seating_indoor_01_56-59 pattern
-                       if baseNumber >= 56 and baseNumber <= 59 then
-                           spriteName = baseSprite .. "_" .. (56 + offset)
-                       -- For 0-3 pattern
-                       elseif baseNumber >= 0 and baseNumber <= 3 then
-                           spriteName = baseSprite .. "_" .. offset
-                       -- For other patterns, try adding offset
-                       else
-                           spriteName = baseSprite .. "_" .. (baseNumber + offset)
-                       end
-                   end
+           -- Safely attempt to get world sprite
+           if chairItem and chairItem.getWorldSprite then
+               local success, result = pcall(function() return chairItem:getWorldSprite() end)
+               if success and result then
+                   chairSprite = result
+                   print("Chair world sprite: " .. tostring(chairSprite))
+               else
+                   print("Could not get world sprite, using default")
                end
            end
 
-           print("Using sprite: " .. spriteName)
+           -- If we got a valid sprite, try to apply orientation
+           if chairSprite and type(chairSprite) == "string" and chairSprite ~= "" then
+               spriteName = chairSprite
+
+               -- For chairs with multiple orientations, try to get the right one
+               -- Check if the sprite has an underscore followed by a number (orientation indicator)
+               if chairSprite:match("_(%d+)$") then
+                   -- Extract base sprite name without orientation
+                   local baseSprite = chairSprite:match("(.+)_(%d+)$")
+                   if baseSprite then
+                       -- Try to find sprites for different orientations
+                       local orientNumber = chairSprite:match("_(%d+)$")
+                       local baseNumber = tonumber(orientNumber)
+
+                       if baseNumber then
+                           -- Calculate offset based on direction
+                           local directionMap = {north = 0, east = 1, south = 2, west = 3}
+                           local offset = directionMap[chairDirection] or 0
+
+                           -- For furniture_seating_indoor_01_56-59 pattern
+                           if baseNumber >= 56 and baseNumber <= 59 then
+                               spriteName = baseSprite .. "_" .. (56 + offset)
+                           -- For 0-3 pattern
+                           elseif baseNumber >= 0 and baseNumber <= 3 then
+                               spriteName = baseSprite .. "_" .. offset
+                           -- For other patterns, calculate relative position
+                           else
+                               local baseInSet = baseNumber % 4
+                               local setStart = baseNumber - baseInSet
+                               spriteName = baseSprite .. "_" .. (setStart + offset)
+                           end
+                       end
+                   end
+               end
+           else
+               print("Using default sprite for direction: " .. chairDirection)
+           end
+
+           print("Final sprite: " .. spriteName)
 
            local chairObj = IsoThumpable.new(getCell(), chairSquare, spriteName, false, {})
            chairObj:setName("BarricadeChair")
