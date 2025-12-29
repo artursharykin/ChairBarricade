@@ -208,8 +208,9 @@ ChairBarricade.onBarricade = function(worldobjects, playerNum, door, chairItem)
                        local baseNumber = tonumber(orientNumber)
 
                        if baseNumber then
-                           -- Calculate offset based on direction
-                           local directionMap = {north = 0, east = 1, south = 2, west = 3}
+                           -- Calculate offset based on direction (matches PZ sprite numbering)
+                           -- Sprite pattern: west=0, north=1, east=2, south=3
+                           local directionMap = {west = 0, north = 1, east = 2, south = 3}
                            local offset = directionMap[chairDirection] or 0
 
                            -- For furniture_seating_indoor_01_56-59 pattern
