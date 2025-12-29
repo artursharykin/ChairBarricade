@@ -8,12 +8,12 @@ local ChairBarricade = {}
 local function getPlayerSideOfDoor(player, door)
    local doorSquare = door:getSquare()
    local playerSquare = player:getCurrentSquare()
-  
+
    if door:getNorth() then
        -- Door is North-South oriented
        local distanceFromDoor = playerSquare:getY() - doorSquare:getY()
        print("N/S Door: Distance from door: " .. distanceFromDoor)
-       
+
        local isSouth = playerSquare:getY() >= doorSquare:getY()
        print("Is player south? " .. tostring(isSouth))
        return isSouth and "south" or "north"
@@ -27,17 +27,17 @@ end
 
 local function playerHasChair(player)
     print("playerHasChair function called")
-    if not player then 
+    if not player then
         print("Player is nil")
         return false, nil
     end
-    
+
     local inv = player:getInventory()
-    if not inv then 
+    if not inv then
         print("Inventory is nil")
         return false, nil
     end
- 
+
     local items = inv:getItems()
     print("Scanning player's inventory:")
     for i=0, items:size()-1 do
@@ -49,18 +49,18 @@ local function playerHasChair(player)
             return true, item
         end
     end
-    
+
     print("No chairs found in inventory.")
     return false, nil
 end
- 
+
 local function onFillWorldObjectContextMenu(player, context, worldobjects)
     print("Context menu handler called")
-    if not context then 
+    if not context then
         print("Error: No context provided")
-        return 
+        return
     end
-    
+
     local door = nil
     local chairProp = nil
 
@@ -68,7 +68,7 @@ local function onFillWorldObjectContextMenu(player, context, worldobjects)
         if instanceof(object, "IsoDoor") then
             door = object
             print("Found a door")
-        elseif instanceof(object, "IsoThumpable") and 
+        elseif instanceof(object, "IsoThumpable") and
                object:getName() == "BarricadeChair" then
             chairProp = object
             print("Found a barricade chair")
@@ -76,7 +76,7 @@ local function onFillWorldObjectContextMenu(player, context, worldobjects)
     end
 
     local currentPlayer = getSpecificPlayer(player)
-    
+
     -- Check if door is barricaded and add remove option
     if door and door:getModData().chairBarricaded then
         print("Door is already barricaded with a chair")
@@ -85,7 +85,7 @@ local function onFillWorldObjectContextMenu(player, context, worldobjects)
     else
         local hasChair, chairItem = playerHasChair(currentPlayer)
         print("Has chair check result: " .. tostring(hasChair))
-        
+
         if door and hasChair then
             context:addOption("Lock with Chair", worldobjects, ChairBarricade.onBarricade, player, door, chairItem)
             print("Added chair barricade option to menu")
@@ -104,17 +104,30 @@ end
 ChairBarricade.onBarricade = function(worldobjects, playerNum, door, chairItem)
    local player = getSpecificPlayer(playerNum)
    if not player or not chairItem then return end
-  
+
    print("Attempting to barricade door")
    local inv = player:getInventory()
    if not inv then return end
 
-   print("Attempting to lock door...")
+   -- Store the chair item type for later retrieval
+   local chairItemType = chairItem:getFullType()
+   print("Storing chair type: " .. chairItemType)
+
+   print("Attempting to close and lock door...")
+   -- First, make sure the door is closed
+   if door.setIsOpen then
+       door:setIsOpen(false)
+       print("Door closed")
+   end
+
+   -- Try all possible locking methods to ensure it works on all door types
    if door.setLockedByKey then door:setLockedByKey(true) end
    if door.setKeyId then door:setKeyId(-1) end
    if door.setLocked then door:setLocked(true) end
+   if door.setIsLocked then door:setIsLocked(true) end
    if door.setBarricaded then door:setBarricaded(true) end
-   
+   print("Door locked successfully")
+
     inv:Remove(chairItem)
     -- Before changing door health
     local currentHealth = door:getHealth()
@@ -126,12 +139,12 @@ ChairBarricade.onBarricade = function(worldobjects, playerNum, door, chairItem)
     -- Apply the multiplier
     door:setHealth(currentHealth * multiplier)
     print("Door health after barricade: " .. door:getHealth())
-   
+
    local doorSquare = door:getSquare()
    if doorSquare then
        local playerSide = getPlayerSideOfDoor(player, door)
        local chairSquare = doorSquare
-       
+
        -- Set position based on door orientation
        if door:getNorth() then
            local yOffset = (playerSide == "south") and 0 or -1
@@ -142,33 +155,67 @@ ChairBarricade.onBarricade = function(worldobjects, playerNum, door, chairItem)
        end
 
        if chairSquare then
-           -- Standard chair sprites
-           -- Words could not describe how many different ways I tried to avoid having to do this
-           -- but because Indie Stone doesnt have a true convention for chair id's, you cant programmatically
-           -- find which orientation a chair is without having one big lookup table
-           local standardChairs = {
-               south = "furniture_seating_indoor_01_59",
-               east = "furniture_seating_indoor_01_58",
-               north = "furniture_seating_indoor_01_57",
-               west = "furniture_seating_indoor_01_56"
-           }
-           
-           local chairDirection = door:getNorth() 
+           local chairDirection = door:getNorth()
                and ((playerSide == "south") and "north" or "south")
                or ((playerSide == "east") and "west" or "east")
-           
+
            print("Placing chair facing: " .. chairDirection)
-           
-           local chairObj = IsoThumpable.new(getCell(), chairSquare, standardChairs[chairDirection], false, {})
+
+           -- Get the sprite from the actual chair item
+           local chairSprite = chairItem:getWorldSprite()
+           print("Chair world sprite: " .. tostring(chairSprite))
+
+           -- Map direction to sprite orientation suffix if needed
+           -- Most furniture sprites follow a pattern: basename_N where N is the orientation
+           -- We'll try to use the chair's actual sprite with orientation handling
+           local spriteName = chairSprite
+
+           -- For chairs with multiple orientations, try to get the right one
+           -- Check if the sprite has an underscore followed by a number (orientation indicator)
+           if chairSprite and chairSprite:match("_(%d+)$") then
+               -- Extract base sprite name without orientation
+               local baseSprite = chairSprite:match("(.+)_(%d+)$")
+               if baseSprite then
+                   -- Try to find sprites for different orientations
+                   -- Most furniture follows patterns like: name_0, name_1, name_2, name_3
+                   -- or name_56, name_57, name_58, name_59
+                   local orientNumber = chairSprite:match("_(%d+)$")
+                   local baseNumber = tonumber(orientNumber)
+
+                   if baseNumber then
+                       -- Calculate offset based on direction
+                       local directionMap = {north = 0, east = 1, south = 2, west = 3}
+                       local offset = directionMap[chairDirection] or 0
+
+                       -- For furniture_seating_indoor_01_56-59 pattern
+                       if baseNumber >= 56 and baseNumber <= 59 then
+                           spriteName = baseSprite .. "_" .. (56 + offset)
+                       -- For 0-3 pattern
+                       elseif baseNumber >= 0 and baseNumber <= 3 then
+                           spriteName = baseSprite .. "_" .. offset
+                       -- For other patterns, try adding offset
+                       else
+                           spriteName = baseSprite .. "_" .. (baseNumber + offset)
+                       end
+                   end
+               end
+           end
+
+           print("Using sprite: " .. spriteName)
+
+           local chairObj = IsoThumpable.new(getCell(), chairSquare, spriteName, false, {})
            chairObj:setName("BarricadeChair")
            chairObj:setThumpDmg(0)
            chairObj:setCanPassThrough(false)
            chairObj:setBlockAllTheSquare(true)
            chairObj:transmitCompleteItemToServer()
            chairSquare:AddTileObject(chairObj)
-           
+
+           -- Store both the sprite name and item type in modData for removal
            door:getModData().chairBarricaded = true
            door:getModData().blockingChair = chairObj
+           door:getModData().chairItemType = chairItemType
+           door:getModData().chairSprite = spriteName
            print("Chair barricade placed successfully!")
        end
    end
@@ -178,28 +225,28 @@ ChairBarricade.onRemoveBarricade = function(worldobjects, chair, door)
     print("Removal function called with:")
     print("Chair: " .. tostring(chair))
     print("Door: " .. tostring(door))
-   
+
     -- Safety check
     if not door then
         print("ERROR: Door is nil!")
         return
     end
-   
+
     if not door.getSquare then
         print("ERROR: Door doesn't have getSquare method!")
         return
     end
- 
+
     -- Get current multiplier to properly reduce health
     local multiplier = SandboxVars.ChairBarricade.DoorHealthMultiplier
-   
+
     -- Reduce door health back to original
     local currentHealth = door:getHealth()
     print("Door health before chair removal: " .. currentHealth)
     door:setHealth(currentHealth / multiplier)
     print("Door health after chair removal: " .. door:getHealth())
-   
-    -- Reset door state with safety checks
+
+    -- Reset door state with safety checks - unlock all possible ways
     if door.setLockedByKey then
         door:setLockedByKey(false)
         print("Door unlocked (key)")
@@ -208,12 +255,16 @@ ChairBarricade.onRemoveBarricade = function(worldobjects, chair, door)
         door:setLocked(false)
         print("Door unlocked")
     end
+    if door.setIsLocked then
+        door:setIsLocked(false)
+        print("Door unlocked (IsLocked)")
+    end
     -- Use modData instead of direct method call
     if door:getModData() then
         door:getModData().barricaded = false
         print("Door barricade flag reset")
     end
-   
+
     -- Find and remove the chair object from the square
     local doorSquare = door:getSquare()
     if doorSquare then
@@ -223,7 +274,7 @@ ChairBarricade.onRemoveBarricade = function(worldobjects, chair, door)
         table.insert(squares, getCell():getGridSquare(doorSquare:getX(), doorSquare:getY() - 1, doorSquare:getZ()))
         table.insert(squares, getCell():getGridSquare(doorSquare:getX() + 1, doorSquare:getY(), doorSquare:getZ()))
         table.insert(squares, getCell():getGridSquare(doorSquare:getX() - 1, doorSquare:getY(), doorSquare:getZ()))
-       
+
         for _, square in ipairs(squares) do
             if square then
                 local objects = square:getObjects()
@@ -235,10 +286,12 @@ ChairBarricade.onRemoveBarricade = function(worldobjects, chair, door)
 
                         local player = getSpecificPlayer(0)
                         if player then
-                            player:getInventory():AddItem("Base.Mov_GreenChair")
+                            -- Get the stored chair type from modData, default to green chair if not found
+                            local chairType = door:getModData().chairItemType or "Base.Mov_GreenChair"
+                            print("Returning chair type: " .. chairType)
+                            player:getInventory():AddItem(chairType)
                             print("Chair added to player inventory")
                         end
-                                  
 
                         break
                     end
@@ -246,7 +299,7 @@ ChairBarricade.onRemoveBarricade = function(worldobjects, chair, door)
             end
         end
     end
-   
+
     door:getModData().chairBarricaded = false
     print("Chair barricade removed successfully!")
 end

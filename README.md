@@ -14,16 +14,18 @@ A simple mod that adds the ability to fortify doors by propping chairs against t
 - Visual feedback with chair prop against door
 
 ## Technical Notes
-- Due to Project Zomboid's furniture system limitations, all barricade chairs are rendered as the standard wooden chair with green seat (furniture_seating_indoor_01_56-59), regardless of the chair type used
-- Interior doors that cannot be locked by default in the base game cannot be barricaded
+- The mod now uses the actual chair sprite you picked up, preserving the visual appearance of your barricade
+- All doors can now be barricaded and locked, including interior doors
 - Chair placement is determined by player position relative to the door
 - Uses IsoThumpable for chair object to ensure proper collision
+- When removing a barricade, you get back the exact chair type you used
 - Compatible with Build 41 & 42
 
-## Known Issues
-- Some interior doors cannot be barricaded due to being "unlockable" in the base game
-- Chair sprite is always the same regardless of input chair type
-- Currently no way to remove chair barricades (planned for future update)
+## Recent Updates (v1.1.0)
+- **Fixed**: All doors can now be closed and locked, including previously "unlockable" interior doors
+- **Fixed**: Chairs now display with their actual appearance instead of always being green wooden chairs
+- **Fixed**: Removing a barricade now returns the correct chair type to your inventory
+- **Improved**: Enhanced door locking logic to work with all door types in the game
 
 ## Installation
 1. Subscribe to the mod on Steam Workshop, or

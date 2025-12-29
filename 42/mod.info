@@ -1,7 +1,7 @@
 name=ChairBarricade
 id=ChairBarricade
-description=Use chairs to barricade doors, increasing their health and locking them in the process TEST
+description=Use chairs to barricade doors, increasing their health and locking them in the process. Now with proper chair sprite support and works on all door types!
 poster=poster.png
 authors=wsnekk
-modversion=42-1.0.0
+modversion=42-1.1.0
 versionMin=42.0.2
