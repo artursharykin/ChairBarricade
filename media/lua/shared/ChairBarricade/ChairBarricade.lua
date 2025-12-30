@@ -163,10 +163,10 @@ ChairBarricade.onBarricade = function(worldobjects, playerNum, door, chairItem)
 
        if chairSquare then
            -- Chair should face AWAY from door (back against door for barricading)
-           -- So if player is on south side, chair faces south (away from door to north)
+           -- So if player is on south side, chair faces north (back toward door)
            local chairDirection = door:getNorth()
-               and ((playerSide == "south") and "south" or "north")
-               or ((playerSide == "east") and "east" or "west")
+               and ((playerSide == "south") and "north" or "south")
+               or ((playerSide == "east") and "west" or "east")
 
            print("Placing chair facing: " .. chairDirection .. " (back against door)")
 
