@@ -211,10 +211,10 @@ ChairBarricade.onBarricade = function(worldobjects, playerNum, door, chairItem)
                                local testName = baseName .. "_" .. i
                                local sprite = spriteManager:getSprite(testName)
                                if sprite then
-                                   local props = sprite:getProperties()
-                                   if props then
-                                       local facing = props:getValue("Facing")
-                                       if facing == targetFacing then
+                                   local success, props = pcall(function() return sprite:getProperties() end)
+                                   if success and props then
+                                       local facingSuccess, facing = pcall(function() return props:getValue("Facing") end)
+                                       if facingSuccess and facing and facing == targetFacing then
                                            spriteName = testName
                                            found = true
                                            print("Found sprite: " .. testName .. " with Facing=" .. facing)
