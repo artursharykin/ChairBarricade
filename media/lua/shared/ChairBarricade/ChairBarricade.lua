@@ -213,7 +213,7 @@ ChairBarricade.onBarricade = function(worldobjects, playerNum, door, chairItem)
                                if sprite then
                                    local props = sprite:getProperties()
                                    if props then
-                                       local facing = props:Val("Facing")
+                                       local facing = props:getValue("Facing")
                                        if facing == targetFacing then
                                            spriteName = testName
                                            found = true
