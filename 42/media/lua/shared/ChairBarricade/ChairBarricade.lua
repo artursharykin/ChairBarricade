@@ -213,8 +213,18 @@ ChairBarricade.onBarricade = function(worldobjects, playerNum, door, chairItem)
                                if sprite then
                                    local success, props = pcall(function() return sprite:getProperties() end)
                                    if success and props then
-                                       local facingSuccess, facing = pcall(function() return props:getValue("Facing") end)
-                                       if facingSuccess and facing and facing == targetFacing then
+                                       -- Try multiple ways to access the Facing property
+                                       local facing = nil
+
+                                       -- Method 1: Direct property access
+                                       if props.Facing then
+                                           facing = props.Facing
+                                       -- Method 2: Table-style access
+                                       elseif props["Facing"] then
+                                           facing = props["Facing"]
+                                       end
+
+                                       if facing and facing == targetFacing then
                                            spriteName = testName
                                            found = true
                                            print("Found sprite: " .. testName .. " with Facing=" .. facing)
