@@ -193,60 +193,43 @@ ChairBarricade.onBarricade = function(worldobjects, playerNum, door, chairItem)
                end
            end
 
-           -- Try to find sprite using Facing property (works for all chair types)
+           -- If we got a valid sprite, try to apply orientation
            if chairSprite and type(chairSprite) == "string" and chairSprite ~= "" then
-               -- Extract base sprite name (everything before last underscore + number)
-               local baseName = chairSprite:match("(.+)_%d+$")
+               spriteName = chairSprite
 
-               if baseName then
-                   print("Base sprite name: " .. baseName)
+               -- For chairs with multiple orientations, try to get the right one
+               -- Check if the sprite has an underscore followed by a number (orientation indicator)
+               if chairSprite:match("_(%d+)$") then
+                   -- Extract base sprite name without orientation
+                   local baseSprite = chairSprite:match("(.+)_(%d+)$")
+                   if baseSprite then
+                       -- Try to find sprites for different orientations
+                       local orientNumber = chairSprite:match("_(%d+)$")
+                       local baseNumber = tonumber(orientNumber)
 
-                   -- Get sprite manager to check Facing properties
-                   local spriteManager = IsoSpriteManager and IsoSpriteManager.instance
+                       if baseNumber then
+                           -- Calculate offset based on direction (matches PZ sprite numbering)
+                           -- Sprite pattern: west=0, north=1, east=2, south=3
+                           local directionMap = {west = 0, north = 1, east = 2, south = 3}
+                           local offset = directionMap[chairDirection] or 0
 
-                   if spriteManager then
-                       -- Map direction to PZ Facing property values
-                       local facingMap = {
-                           north = "N",
-                           south = "S",
-                           east = "E",
-                           west = "W"
-                       }
+                           -- Add 180 degree flip (opposite direction needed for proper orientation)
+                           offset = (offset + 2) % 4
 
-                       local targetFacing = facingMap[chairDirection]
-                       print("Looking for sprite with Facing: " .. tostring(targetFacing))
-
-                       -- Search for sprite with matching Facing property
-                       local foundSprite = false
-                       for i = 0, 100 do
-                           local testSpriteName = baseName .. "_" .. i
-                           local sprite = spriteManager:getSprite(testSpriteName)
-
-                           if sprite then
-                               local properties = sprite:getProperties()
-                               if properties then
-                                   local facing = properties:Val("Facing")
-                                   if facing and facing == targetFacing then
-                                       spriteName = testSpriteName
-                                       foundSprite = true
-                                       print("Found sprite with matching Facing: " .. testSpriteName)
-                                       break
-                                   end
-                               end
+                           -- For furniture_seating_indoor_01_56-59 pattern
+                           if baseNumber >= 56 and baseNumber <= 59 then
+                               spriteName = baseSprite .. "_" .. (56 + offset)
+                           -- For 0-3 pattern
+                           elseif baseNumber >= 0 and baseNumber <= 3 then
+                               spriteName = baseSprite .. "_" .. offset
+                           -- For other patterns, calculate relative position
+                           else
+                               local baseInSet = baseNumber % 4
+                               local setStart = baseNumber - baseInSet
+                               spriteName = baseSprite .. "_" .. (setStart + offset)
                            end
                        end
-
-                       if not foundSprite then
-                           print("No sprite found with Facing=" .. tostring(targetFacing) .. ", using original")
-                           spriteName = chairSprite
-                       end
-                   else
-                       print("Sprite manager not available, using original sprite")
-                       spriteName = chairSprite
                    end
-               else
-                   print("Could not extract base name, using original sprite")
-                   spriteName = chairSprite
                end
            else
                print("Using default sprite for direction: " .. chairDirection)
